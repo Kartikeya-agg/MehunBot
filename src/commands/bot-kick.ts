@@ -8,7 +8,7 @@ import { Command } from '@sapphire/framework';
 export class UserCommand extends Command {
 	public override registerApplicationCommands(registry: Command.Registry) {
 		registry.registerChatInputCommand((builder) =>
-			builder //
+			builder
 				.setName(this.name)
 				.setDescription(this.description)
 				.addStringOption((option) => option.setName('name').setDescription('The server name or ID').setRequired(true))
