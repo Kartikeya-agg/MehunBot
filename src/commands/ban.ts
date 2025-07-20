@@ -20,7 +20,6 @@ export class UserCommand extends Command {
 	}
 
 	public override async chatInputRun(interaction: Command.ChatInputCommandInteraction) {
-		// return interaction.reply({ content: 'Hello world!' });
 		if (!interaction.guild) return interaction.reply({ content: this.container.messages.guildOnly, ephemeral: true });
 		const user = interaction.options.getUser('user', true);
 		const reason = interaction.options.getString('reason', false);
