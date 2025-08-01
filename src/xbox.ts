@@ -291,7 +291,8 @@ async function getCurrentActivity(user: IUser) {
 
 async function checkAndPostGameActivity() {
 	try {
-		const users = await User.find({});
+		// Only get users who have a userId (are claimed by someone)
+		const users = await User.find({ userId: { $exists: true, $ne: null } });
 
 		for (const user of users) {
 			try {

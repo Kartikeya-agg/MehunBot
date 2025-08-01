@@ -33,8 +33,11 @@ export class UserCommand extends Command {
 		if (!db) {
 			await interaction.editReply(`This Xbox account is not claimed`);
 		} else {
-			db.userId = undefined;
-			await db.save();
+			// Use $unset to properly remove the userId field
+			await User.updateOne(
+				{ _id: db._id },
+				{ $unset: { userId: 1 } }
+			);
 			await interaction.editReply(`Successfully removed the claim for the Xbox account: ${name}`);
 		}
 		await interaction.followUp({
