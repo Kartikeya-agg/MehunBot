@@ -1,7 +1,7 @@
 import { ApplyOptions } from '@sapphire/decorators';
 import { Listener, type Store } from '@sapphire/framework';
 import { blue, gray, green, magenta, magentaBright, white, yellow } from 'colorette';
-import { Collection } from 'discord.js';
+import { Collection, WebhookClient } from 'discord.js';
 import * as https from 'https';
 import cron from 'node-cron';
 import {timedMessages} from "../mongo";
@@ -30,6 +30,15 @@ export class UserEvent extends Listener {
 		});
 		await sleep(1000);
 		fillChannels();
+
+		const webhook = new WebhookClient({
+			url: process.env.WEBHOOK as string
+		});
+
+		webhook.send({
+			content: "Bot is ready!"
+		});
+
 		cron.schedule("0 */1 * * *", async () => {
 			const timed = await timedMessages.find({});
 			if (!timed) return;
