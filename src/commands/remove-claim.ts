@@ -39,30 +39,73 @@ export class UserCommand extends Command {
 				return;
 			}
 
-			// Instead of unsetting, we'll delete and recreate the user without userId
-			const userData = {
+			// Check if there are any existing unclaimed users with the same oauthId
+			const existingUnclaimed = await User.findOne({
 				oauthId: user.oauthId,
-				displayName: user.displayName,
-				xboxConnection: user.xboxConnection,
-				currentlyPlaying: [] // Clear current activity
-			};
+				$or: [
+					{ userId: { $exists: false } },
+					{ userId: null }
+				]
+			});
 
-			// Delete the old record and create a new one without userId
-			await User.deleteOne({ _id: user._id });
-			await User.create(userData);
+			if (existingUnclaimed) {
+				// If there's already an unclaimed version, just delete the claimed one
+				await User.deleteOne({ _id: user._id });
+				// Clear the existing unclaimed user's activity
+				await User.updateOne(
+					{ _id: existingUnclaimed._id },
+					{ $set: { currentlyPlaying: [] } }
+				);
+			} else {
+				// Create new unclaimed user by updating the existing one
+				await User.updateOne(
+					{ _id: user._id },
+					{ 
+						$unset: { userId: "" },
+						$set: { currentlyPlaying: [] }
+					}
+				);
+			}
 
 			await interaction.editReply(`Successfully removed the claim for the Xbox account: ${name}`);
 			
 			// Log for debugging
-			console.log(`Removed claim for ${name}: User recreated without userId`);
+			console.log(`Removed claim for ${name}: User unclaimed successfully`);
 			
 			await interaction.followUp({
 				content: `If you want to claim this account again, use the /claim command`,
 				ephemeral: true
 			});
-		} catch (error) {
+		} catch (error: any) {
 			console.error('Error removing claim:', error);
-			await interaction.editReply(`An error occurred while removing the claim: ${error}`);
+			
+			// If it's still a duplicate key error, try a different approach
+			if (error.message.includes('E11000') && error.message.includes('userId')) {
+				try {
+					// Find and delete ALL records with null userId first
+					await User.deleteMany({ userId: null });
+					
+					// Now try to unclaim the user again
+					await User.updateOne(
+						{
+							displayName: {
+								$regex: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')
+							},
+							userId: { $exists: true, $ne: null }
+						},
+						{ 
+							$unset: { userId: "" },
+							$set: { currentlyPlaying: [] }
+						}
+					);
+					
+					await interaction.editReply(`Successfully removed the claim for the Xbox account: ${name} (after cleanup)`);
+				} catch (secondError) {
+					await interaction.editReply(`Failed to remove claim even after cleanup: ${secondError}`);
+				}
+			} else {
+				await interaction.editReply(`An error occurred while removing the claim: ${error}`);
+			}
 		}
 	}
 }
