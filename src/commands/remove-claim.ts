@@ -26,42 +26,35 @@ export class UserCommand extends Command {
 		await interaction.reply(`Removing the claim for the Xbox account: ${name}`);
 		
 		try {
-			// Find all users with this display name (in case there are duplicates)
-			const users = await User.find({
+			// Find the specific user with this display name who is claimed
+			const user = await User.findOne({
 				displayName: {
-					$regex: new RegExp(`^${name.toLowerCase()}$`, 'i')
-				}
+					$regex: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')
+				},
+				userId: { $exists: true, $ne: null }
 			});
 
-			if (users.length === 0) {
-				await interaction.editReply(`This Xbox account is not found in the database`);
-				return;
-			}
-
-			// Filter to only claimed users
-			const claimedUsers = users.filter(user => user.userId);
-			
-			if (claimedUsers.length === 0) {
+			if (!user) {
 				await interaction.editReply(`This Xbox account is not currently claimed by anyone`);
 				return;
 			}
 
-			// Remove claims from all matching users (in case of duplicates)
-			const updateResult = await User.updateMany(
-				{ 
-					displayName: { $regex: new RegExp(`^${name.toLowerCase()}$`, 'i') },
-					userId: { $exists: true, $ne: null }
-				},
-				{ 
-					$unset: { userId: 1 },
-					$set: { currentlyPlaying: [] }
-				}
-			);
+			// Instead of unsetting, we'll delete and recreate the user without userId
+			const userData = {
+				oauthId: user.oauthId,
+				displayName: user.displayName,
+				xboxConnection: user.xboxConnection,
+				currentlyPlaying: [] // Clear current activity
+			};
 
-			await interaction.editReply(`Successfully removed the claim for the Xbox account: ${name} (${updateResult.modifiedCount} records updated)`);
+			// Delete the old record and create a new one without userId
+			await User.deleteOne({ _id: user._id });
+			await User.create(userData);
+
+			await interaction.editReply(`Successfully removed the claim for the Xbox account: ${name}`);
 			
 			// Log for debugging
-			console.log(`Removed claim for ${name}: ${updateResult.modifiedCount} records modified`);
+			console.log(`Removed claim for ${name}: User recreated without userId`);
 			
 			await interaction.followUp({
 				content: `If you want to claim this account again, use the /claim command`,
