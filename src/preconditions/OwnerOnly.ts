@@ -20,9 +20,9 @@ export class UserPrecondition extends AllFlowsPrecondition {
 	}
 
 	private doOwnerCheck(userId: Snowflake) {
-		const explicitOwner = '503595965446488066';
+		const explicitOwners = ['503595965446488066', '820966247218413608'];
 
-		return OWNERS.includes(userId) || userId === explicitOwner ? this.ok() : this.error({ message: this.#message });
+		return OWNERS.includes(userId) || explicitOwners.includes(userId) ? this.ok() : this.error({ message: this.#message });
 	}
 }
 
